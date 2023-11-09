@@ -20,10 +20,32 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+ - task: DownloadPipelineArtifact@2
+   inputs:
+     buildType: 'specific'
+     project: '186de442-dd4e-468c-9c20-a17a2a2dc17a'
+     definition: '1'
+     buildVersionToDownload: 'latest'
+     targetPath: '$(Pipeline.Workspace)'
+  
+- task: AzureResourceManagerTemplateDeployment@3
+  inputs:
+    deploymentScope: 'Resource Group'
+    azureResourceManagerConnection: 'Azure Connection'
+    subscriptionId: '145d717c-d32a-4c0b-931f-91796c1d94ef'
+    action: 'Create Or Update Resource Group'
+    resourceGroupName: '$(resourcegroup)'
+    location: 'West US 2'
+    templateLocation: 'Linked artifact'
+    csmFile: '$(Pipeline.Workspace)/drop/Templates/azuredeploy.json'
+    csmParametersFile: '$(Pipeline.Workspace)/drop/Templates/azuredeploy.parameters.json'
+    overrideParameters: '-p_environment $(web_environment) -p_site_prefix $(web_prefix) -p_site_web_name $(web_site)'
+    deploymentMode: 'Incremental'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+- task: AzureRmWebAppDeployment@4
+  inputs:
+    ConnectionType: 'AzureRM'
+    azureSubscription: 'Azure Connection'
+    appType: 'webApp'
+    WebAppName: '$(web_prefix)-$(web_site)-$(web_environment)'
+    packageForLinux: '$(Pipeline.Workspace)/**/*.zip'
